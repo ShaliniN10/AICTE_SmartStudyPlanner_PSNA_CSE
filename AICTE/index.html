@@ -1,0 +1,219 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title> Smart Study Planner</title>
+  <style>
+    body {
+      font-family: 'Segoe UI', sans-serif;
+      background: #f4f6f8;
+      margin: 0;
+      padding: 20px;
+      transition: background 0.3s, color 0.3s;
+    }
+    .dark-mode {
+      background: #121212;
+      color: #eee;
+    }
+    .container {
+      max-width: 900px;
+      margin: auto;
+    }
+    h1, h2 {
+      text-align: center;
+      color: #00796b;
+    }
+    input, textarea, select, button {
+      display: block;
+      width: 100%;
+      margin: 10px 0;
+      padding: 10px;
+      font-size: 16px;
+    }
+    ul {
+      list-style: none;
+      padding: 0;
+    }
+    li {
+      background: #e0f7fa;
+      margin: 10px 0;
+      padding: 10px;
+      border-left: 5px solid #00796b;
+    }
+    .dark-mode li {
+      background: #1e1e1e;
+      color: #ccc;
+    }
+    .btn {
+      background: #00796b;
+      color: white;
+      border: none;
+      padding: 8px 12px;
+      cursor: pointer;
+      border-radius: 4px;
+    }
+    .btn:hover {
+      background: #004d40;
+    }
+    .progress-bar {
+      width: 100%;
+      background: #ddd;
+      border-radius: 4px;
+      overflow: hidden;
+      margin-top: 5px;
+    }
+    .progress-fill {
+      height: 10px;
+      background: #00796b;
+    }
+    .badge {
+      display: inline-block;
+      background: gold;
+      color: black;
+      padding: 5px 10px;
+      border-radius: 12px;
+      margin: 5px 0;
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <h1>📚 Smart Study Planner</h1>
+    <button class="btn" onclick="toggleDarkMode()">🌙 Toggle Dark Mode</button>
+
+    <form id="taskForm">
+      <input type="text" id="title" placeholder="Task Title" required />
+      <textarea id="description" placeholder="Description"></textarea>
+      <input type="date" id="dueDate" required />
+      <input type="number" id="progress" placeholder="Progress (%)" min="0" max="100" />
+      <select id="subject">
+        <option value="">Select Subject</option>
+        <option value="Math">Math</option>
+        <option value="Science">Science</option>
+        <option value="History">History</option>
+      </select>
+      <select id="priority">
+        <option value="">Priority</option>
+        <option value="High">High</option>
+        <option value="Medium">Medium</option>
+        <option value="Low">Low</option>
+      </select>
+      <button type="submit" class="btn">Add Task</button>
+    </form>
+
+    <h2>🗓️ Upcoming Tasks</h2>
+    <ul id="taskList"></ul>
+
+    <h2>📊 Weekly Summary</h2>
+    <div id="summary"></div>
+
+    <h2>⏱️ Pomodoro Timer</h2>
+    <button class="btn" onclick="startPomodoro()">Start 25-min Focus</button>
+    <div id="timerDisplay">25:00</div>
+
+    <h2>📝 Daily Reflection</h2>
+    <textarea id="reflection" placeholder="Write your thoughts..."></textarea>
+    <button class="btn" onclick="saveReflection()">Save Reflection</button>
+    <div id="reflectionDisplay"></div>
+  </div>
+
+  <script>
+    function toggleDarkMode() {
+      document.body.classList.toggle("dark-mode");
+    }
+
+    function loadTasks() {
+      const tasks = JSON.parse(localStorage.getItem("tasks")) || [];
+      const taskList = document.getElementById("taskList");
+      taskList.innerHTML = "";
+
+      let completed = 0;
+
+      tasks.forEach((task, index) => {
+        const li = document.createElement("li");
+        li.innerHTML = `
+          <strong>${task.title}</strong><br>
+          ${task.description}<br>
+          Subject: ${task.subject} | Priority: ${task.priority}<br>
+          Due: ${task.dueDate}<br>
+          Progress: ${task.progress}%<br>
+          <div class="progress-bar"><div class="progress-fill" style="width:${task.progress}%"></div></div>
+          ${task.progress == 100 ? '<span class="badge">🏆 Completed!</span>' : ''}
+          <button class="btn" onclick="completeTask(${index})">✅ Complete</button>
+        `;
+        taskList.appendChild(li);
+        if (task.progress == 100) completed++;
+      });
+
+      document.getElementById("summary").innerHTML = `
+        Total Tasks: ${tasks.length}<br>
+        Completed: ${completed}<br>
+        Completion Rate: ${tasks.length ? Math.round((completed / tasks.length) * 100) : 0}%
+      `;
+    }
+
+    function completeTask(index) {
+      const tasks = JSON.parse(localStorage.getItem("tasks")) || [];
+      tasks[index].progress = 100;
+      localStorage.setItem("tasks", JSON.stringify(tasks));
+      loadTasks();
+    }
+
+    document.getElementById("taskForm").addEventListener("submit", (e) => {
+      e.preventDefault();
+      const title = document.getElementById("title").value.trim();
+      const description = document.getElementById("description").value.trim();
+      const dueDate = document.getElementById("dueDate").value;
+      const progress = parseInt(document.getElementById("progress").value) || 0;
+      const subject = document.getElementById("subject").value;
+      const priority = document.getElementById("priority").value;
+      const today = new Date().toISOString().split("T")[0];
+
+      if (dueDate < today) {
+        alert("You can't set a task with a past date.");
+        return;
+      }
+
+      const newTask = { title, description, dueDate, progress, subject, priority };
+      const tasks = JSON.parse(localStorage.getItem("tasks")) || [];
+      tasks.push(newTask);
+      localStorage.setItem("tasks", JSON.stringify(tasks));
+      loadTasks();
+      e.target.reset();
+    });
+
+    function startPomodoro() {
+      let time = 25 * 60;
+      const display = document.getElementById("timerDisplay");
+      const interval = setInterval(() => {
+        const mins = Math.floor(time / 60);
+        const secs = time % 60;
+        display.textContent = `${mins}:${secs < 10 ? "0" : ""}${secs}`;
+        time--;
+        if (time < 0) {
+          clearInterval(interval);
+          alert("Pomodoro session complete! Take a break.");
+        }
+      }, 1000);
+    }
+
+    function saveReflection() {
+      const text = document.getElementById("reflection").value.trim();
+      if (text) {
+        localStorage.setItem("reflection", text);
+        document.getElementById("reflectionDisplay").textContent = "📝 Saved: " + text;
+        document.getElementById("reflection").value = "";
+      }
+    }
+
+    document.addEventListener("DOMContentLoaded", () => {
+      loadTasks();
+      const savedReflection = localStorage.getItem("reflection");
+      if (savedReflection) {
+        document.getElementById("reflectionDisplay").textContent = "📝 Saved: " + savedReflection;
+      }
+    });
+  </script>
+</body>
+</html>
